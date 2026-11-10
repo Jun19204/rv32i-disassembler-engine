@@ -16,8 +16,10 @@ public:
     rs2_    = (bits >> 20) & 0x1F;
   }
   [[nodiscard]]
-  std::string disassemble([[maybe_unused]] uint32_t pc) const override {
-    return std::format("{:<7} x{}, x{}, x{}", mnemonic_, rd_, rs1_, rs2_);
+  auto disassemble([[maybe_unused]] uint32_t pc) const 
+  -> std::string override {
+    return std::format("{:<7} x{}, x{}, x{}", 
+                       mnemonic_, rd_, rs1_, rs2_);
   }
 protected:
   std::string mnemonic_;
@@ -34,8 +36,10 @@ public:
     imm_ = static_cast<int32_t>(bits) >> 20;
   }
   [[nodiscard]]
-  std::string disassemble([[maybe_unused]] uint32_t pc) const override {
-    return std::format("{:<7} x{}, x{}, {}", mnemonic_, rd_, rs1_, imm_);
+  auto disassemble([[maybe_unused]] uint32_t pc) const
+  -> std::string override {
+    return std::format("{:<7} x{}, x{}, {}", 
+                       mnemonic_, rd_, rs1_, imm_);
   }
 protected:
   std::string mnemonic_;
@@ -53,8 +57,10 @@ public:
     shamt_ = (bits >> 20) & 0x1F;
   }
   [[nodiscard]]
-  std::string disassemble([[maybe_unused]] uint32_t pc) const override {
-    return std::format("{:<7} x{}, x{}, {}", mnemonic_, rd_, rs1_, shamt_);
+  auto disassemble([[maybe_unused]] uint32_t pc) const 
+  -> std::string override {
+    return std::format("{:<7} x{}, x{}, {}", 
+                       mnemonic_, rd_, rs1_, shamt_);
   }
 protected:
   std::string mnemonic_;
@@ -71,8 +77,10 @@ public:
     imm_ = static_cast<int32_t>(bits) >> 20;
   }
   [[nodiscard]]
-  std::string disassemble([[maybe_unused]] uint32_t pc) const override {
-    return std::format("{:<7} x{}, {}(x{})", mnemonic_, rd_, imm_, rs1_);
+  auto disassemble([[maybe_unused]] uint32_t pc) const 
+  -> std::string override {
+    return std::format("{:<7} x{}, {}(x{})", 
+                       mnemonic_, rd_, imm_, rs1_);
   }
 protected:
   std::string mnemonic_;
@@ -93,8 +101,10 @@ public:
     imm_ = static_cast<int32_t>(raw_imm << 20) >> 20;
   }
   [[nodiscard]]
-  std::string disassemble([[maybe_unused]] uint32_t pc) const override {
-    return std::format("{:<7} x{}, {}(x{})", mnemonic_, rs2_, imm_, rs1_);
+  auto disassemble([[maybe_unused]] uint32_t pc) const 
+  -> std::string override {
+    return std::format("{:<7} x{}, {}(x{})", 
+                       mnemonic_, rs2_, imm_, rs1_);
   }
 protected:
   std::string mnemonic_;
@@ -120,9 +130,11 @@ public:
     imm_ = static_cast<int32_t>(assembled_imm << 19) >> 19;
   }
   [[nodiscard]]
-  std::string disassemble(uint32_t pc) const override {
+  auto disassemble(uint32_t pc) const 
+  -> std::string override {
     auto target = static_cast<uint32_t>(static_cast<int32_t>(pc) + imm_);
-    return std::format("{:<7} x{}, x{}, 0x{:08x}", mnemonic_, rs1_, rs2_, target);
+    return std::format("{:<7} x{}, x{}, 0x{:08x}", 
+                       mnemonic_, rs1_, rs2_, target);
   }
 protected:
   std::string mnemonic_;
@@ -147,9 +159,11 @@ public:
     imm_ = static_cast<int32_t>(assembled_imm << 11) >> 11;
   }
   [[nodiscard]]
-  std::string disassemble(uint32_t pc) const override {
+  auto disassemble(uint32_t pc) const
+  -> std::string override {
     auto target = static_cast<uint32_t>(static_cast<int32_t>(pc) + imm_);
-    return std::format("{:<7} x{}, 0x{:08x}", mnemonic_, rd_, target);
+    return std::format("{:<7} x{}, 0x{:08x}", 
+                       mnemonic_, rd_, target);
   }
 protected:
   std::string mnemonic_;
@@ -166,12 +180,14 @@ public:
     imm_ = static_cast<int32_t>(bits & 0xFFFFF000);
   }
   [[nodiscard]]
-  std::string disassemble(uint32_t pc) const override {
+  auto disassemble(uint32_t pc) const 
+  -> std::string override {
     uint32_t val 
       = (mnemonic_ == "auipc")
       ? static_cast<uint32_t>(static_cast<int32_t>(pc) + imm_) 
       : static_cast<uint32_t>(imm_);
-    return std::format("{:<7} x{}, 0x{:08x}", mnemonic_, rd_, val);
+    return std::format("{:<7} x{}, 0x{:08x}", 
+                       mnemonic_, rd_, val);
   }
 protected:
   std::string mnemonic_;
@@ -184,7 +200,8 @@ class UnknownInstr : public Instruction {
 public:
   using Instruction::Instruction;
   [[nodiscard]]
-  std::string disassemble([[maybe_unused]] uint32_t pc) const override {
+  auto disassemble([[maybe_unused]] uint32_t pc) const 
+  -> std::string override {
     return "unknown";
   }
 };

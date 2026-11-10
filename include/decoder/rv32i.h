@@ -11,7 +11,7 @@ public:
   Instruction(uint32_t bits) : bits_(bits) {}
   virtual ~Instruction() = default;
   [[nodiscard]]
-  virtual std::string disassemble([[maybe_unused]] uint32_t pc) const = 0;
+  virtual auto disassemble([[maybe_unused]] uint32_t pc) const -> std::string = 0;
 protected:
   uint32_t bits_;
 };

@@ -119,9 +119,11 @@ private:
 };
 
 
+
 // 목적 파일(.o)의 섹션 헤더 테이블을 순회하여 .text 섹션 추출
 template <typename Traits>
-auto ElfParser<Traits>::parseRelocatableText() -> std::vector<uint8_t> {
+auto ElfParser<Traits>::parseRelocatableText() 
+-> std::vector<uint8_t> {
   using Shdr = typename Traits::Shdr;
 
   if (ehdr_.e_shoff == 0 || ehdr_.e_shnum == 0) {
@@ -197,9 +199,11 @@ auto ElfParser<Traits>::parseRelocatableText() -> std::vector<uint8_t> {
 }
 
 
+
 // 실행 파일/공유 라이브러리의 프로그램 헤더 및 진입점을 활용한 하이브리드 추출
 template <typename Traits>
-auto ElfParser<Traits>::parseExecutableText() -> std::vector<uint8_t> {
+auto ElfParser<Traits>::parseExecutableText() 
+-> std::vector<uint8_t> {
   // 실행 파일이라도 섹션 헤더 테이블이 살아있다면 .text 섹션 우선 탐색
   if (ehdr_.e_shoff != 0 && ehdr_.e_shnum != 0 && ehdr_.e_shstrndx != SHN_UNDEF) {
     try {
@@ -274,8 +278,8 @@ auto ElfParser<Traits>::parseExecutableText() -> std::vector<uint8_t> {
  * @param filepath ELF 파일 경로
  * @return IElfParser 인터페이스 포인터
  */
-inline std::unique_ptr<IElfParser>
-createElfParser(const std::filesystem::path &filepath) {
+inline auto createElfParser(const std::filesystem::path &filepath) 
+-> std::unique_ptr<IElfParser> {
   std::ifstream file(filepath, std::ios::binary);
   if (!file.is_open()) {
     throw std::runtime_error("파일 열기 실패: " + filepath.string());
