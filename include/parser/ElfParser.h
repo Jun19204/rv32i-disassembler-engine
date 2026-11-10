@@ -51,7 +51,8 @@ struct ELF64Traits {
 // ============================================================================
 // 3. 구체적인 템플릿 파서 클래스 (정적 다형성 활용)
 // ============================================================================
-template <typename Traits> class ElfParser : public IElfParser {
+template <typename Traits> 
+class ElfParser : public IElfParser {
 public:
   explicit ElfParser(const std::filesystem::path &filepath)
       : file_(filepath, std::ios::binary),
@@ -142,9 +143,9 @@ auto ElfParser<Traits>::parseRelocatableText()
   }
 
   // 섹션 이름 스트링 테이블(.shstrtab) 헤더 위치 계산 및 로드
-  auto shstrtab_hdr_offset =
-      ehdr_.e_shoff +
-      (static_cast<size_t>(ehdr_.e_shstrndx) * ehdr_.e_shentsize);
+  auto shstrtab_hdr_offset = ehdr_.e_shoff 
+                           + (static_cast<size_t>(ehdr_.e_shstrndx) 
+                           * ehdr_.e_shentsize);
   file_.seekg(static_cast<std::streamoff>(shstrtab_hdr_offset), std::ios::beg);
 
   Shdr shstrtab_shdr;
@@ -278,7 +279,7 @@ auto ElfParser<Traits>::parseExecutableText()
  * @param filepath ELF 파일 경로
  * @return IElfParser 인터페이스 포인터
  */
-inline auto createElfParser(const std::filesystem::path &filepath) 
+inline auto createElfParser(const std::filesystem::path& filepath) 
 -> std::unique_ptr<IElfParser> {
   std::ifstream file(filepath, std::ios::binary);
   if (!file.is_open()) {
