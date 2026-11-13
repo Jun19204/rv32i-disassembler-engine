@@ -3,6 +3,7 @@
 #include <elf.h>
 #include <array>
 #include <fstream>
+#include <ios>
 #include <stdexcept>
 #include <string_view>
 #include <filesystem>
@@ -11,7 +12,15 @@
 #include <memory>
 
 
+class ElfParser::ImplBase {
+public:
+  virtual ~ImplBase() = default;
+  virtual auto extractTextSection() -> std::vector<uint8_t> = 0;
+};
+
+
 namespace {
+
 // ============================================================================
 // 32비트 / 64비트 트레이츠 (시스템 표준 ELF 구조체 매핑)
 // ============================================================================
@@ -34,7 +43,7 @@ struct ELF64Traits {
 // 구체적인 템플릿 파서 클래스 (정적 다형성 활용)
 // ============================================================================
 template <typename Traits> 
-class ElfParserImpl : public ElfParser {
+class ElfParserImpl : public ElfParser::ImplBase {
 public:
   explicit ElfParserImpl(const std::filesystem::path& filepath);
   auto extractTextSection() -> std::vector<uint8_t> override;
@@ -258,32 +267,32 @@ auto ElfParserImpl<Traits>::parseExecutableText()
 } // namespace
 
 
-// ============================================================================
-// 팩토리 함수 (런타임 다형성 진입점)
-// ============================================================================
-/**
- * 파일 헤더의 클래스 정보를 읽어 적절한 템플릿 특수화 파서를 동적으로 생성.
- * @return ElfParser 인터페이스 포인터 반환
- */
-auto ElfParser::createElfParser(const std::filesystem::path& filepath) 
--> std::unique_ptr<ElfParser> {
+
+ElfParser::ElfParser(const std::filesystem::path& filepath) {
   std::ifstream file(filepath, std::ios::binary);
   if (!file.is_open()) {
     throw std::runtime_error("파일 열기 실패: " + filepath.string());
   }
 
   std::array<unsigned char, EI_NIDENT> ident;
-  if (!file.read(reinterpret_cast<char *>(ident.data()),
+  if (!file.read(reinterpret_cast<char*>(ident.data()),
                  static_cast<std::streamsize>(ident.size()))) {
     throw std::runtime_error("ELF 헤더 식별자 읽기 실패");
   }
 
-  // 32비트/64비트에 따라 적절한 트레이츠를 주입하여 객체 인스턴스화
   switch (ident[EI_CLASS]) {
-    case ELFCLASS32: return std::make_unique<ElfParserImpl<ELF32Traits>>(filepath);
-    case ELFCLASS64: return std::make_unique<ElfParserImpl<ELF64Traits>>(filepath);
-    default: throw std::runtime_error("알 수 없는 ELF 클래스 타입입니다.");
+    case ELFCLASS32:
+      impl_ = std::make_unique<ElfParserImpl<ELF32Traits>>(filepath);
+      break;
+    case ELFCLASS64:
+      impl_ = std::make_unique<ElfParserImpl<ELF64Traits>>(filepath);
+      break;
+    default:
+      throw std::runtime_error("알 수 없는 ELF 클래스 타입입니다.");
   }
+  
 }
 
-
+auto ElfParser::extractTextSection() -> std::vector<uint8_t> {
+  return impl_->extractTextSection();
+}

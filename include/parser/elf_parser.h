@@ -9,14 +9,27 @@
 
 
 // ============================================================================
-// 1. ELF 파서 공통 인터페이스
+// ELF 파서 공통 인터페이스
 // ============================================================================
 class ElfParser {
 public:
-  virtual ~ElfParser() = default;
-  virtual auto extractTextSection() -> std::vector<uint8_t> = 0;
-  static auto createElfParser(const std::filesystem::path& filepath) 
-    -> std::unique_ptr<ElfParser>;
+  explicit ElfParser(const std::filesystem::path& filepath);
+  ~ElfParser();
+
+  // fstream을 다루므로 복사는 금지하고 이동만 허용
+  ElfParser(ElfParser&&) noexcept;
+  ElfParser& operator=(ElfParser&&) noexcept;
+  ElfParser(const ElfParser&) = delete;
+  ElfParser& operator=(const ElfParser&) = delete;
+
+  // 공개 메서드
+  auto extractTextSection() -> std::vector<uint8_t>;
+
+  class ImplBase;
+
+private:
+  // 내부 구현체에 대한 전방 선언
+  std::unique_ptr<ImplBase> impl_;
 };
 
 
