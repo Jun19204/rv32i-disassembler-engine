@@ -2,36 +2,7 @@
 # Core Libraries
 # ============================================================
 add_library(Decoder-rv32i_lib STATIC rv32i.cc)
-
-# ============================================================
-# Header-only Libraries
-# ============================================================
-
-set(
-  ALL_HERDERS
-    Disasm_headers
-)
-
-foreach(header IN LISTS ALL_HERDERS)
-  add_library(${header} INTERFACE)
-  target_include_directories(
-    ${header}
-    INTERFACE
-      "${PROJECT_SOURCE_DIR}/include"
-  )
-  target_compile_features(
-    ${header}
-    INTERFACE
-      cxx_std_23
-  )
-  target_link_libraries(
-    ${header}
-    INTERFACE
-      project_warnings
-      project_sanitizers
-  )
-endforeach()
-
+add_library(Parser-elf_parser_lib STATIC elf_parser.cc)
 
 # ============================================================
 # Common Static Library Settings
@@ -40,6 +11,7 @@ endforeach()
 set(
   ALL_LIBS
     Decoder-rv32i_lib
+    Parser-elf_parser_lib
 )
 
 foreach(lib IN LISTS ALL_LIBS)

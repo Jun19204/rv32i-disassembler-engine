@@ -5,8 +5,6 @@ include(GoogleTest)
 add_executable(disasm-rv32i_test Test_disasm-rv32i.cc)
 target_link_libraries(disasm-rv32i_test PRIVATE Decoder-rv32i_lib)
 
-
-
 set(
   ALL_TESTS
     disasm-rv32i_test

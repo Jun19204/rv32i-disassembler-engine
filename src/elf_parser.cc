@@ -1,39 +1,19 @@
-#ifndef ELF_PARSER_H
-#define ELF_PARSER_H
+#include "parser/elf_parser.h"
 
-#include <array>
-#include <cstdint>
 #include <elf.h>
-#include <filesystem>
+#include <array>
 #include <fstream>
-#include <memory>
 #include <stdexcept>
 #include <string_view>
+#include <filesystem>
+#include <cstdint>
 #include <vector>
+#include <memory>
 
-
-// ============================================================================
-// 1. ELF 파서 공통 인터페이스
-// ============================================================================
-/**
- * 팩토리 패턴을 통해 생성된 객체를 다형적으로 다루기 위한 추상 베이스 클래스
- */
-class ElfParser {
-public:
-  virtual ~ElfParser() = default;
-  /**
-   * @brief 실행 코드 영역(.text 또는 실행 가능한 PT_LOAD 세그먼트)을
-   * 추출한다.
-   * @return 추출된 바이트 벡터
-   */
-  virtual auto extractTextSection() -> std::vector<uint8_t> = 0;
-  inline static auto createElfParser(const std::filesystem::path& filepath) 
-    -> std::unique_ptr<ElfParser>;
-};
 
 namespace {
 // ============================================================================
-// 2. 32비트 / 64비트 트레이츠 (시스템 표준 ELF 구조체 매핑)
+// 32비트 / 64비트 트레이츠 (시스템 표준 ELF 구조체 매핑)
 // ============================================================================
 struct ELF32Traits {
   using Ehdr = Elf32_Ehdr;
@@ -51,7 +31,7 @@ struct ELF64Traits {
 
 
 // ============================================================================
-// 3. 구체적인 템플릿 파서 클래스 (정적 다형성 활용)
+// 구체적인 템플릿 파서 클래스 (정적 다형성 활용)
 // ============================================================================
 template <typename Traits> 
 class ElfParserImpl : public ElfParser {
@@ -87,19 +67,15 @@ ElfParserImpl<Traits>::ElfParserImpl(const std::filesystem::path &filepath)
 template <typename Traits>
 auto ElfParserImpl<Traits>::extractTextSection() -> std::vector<uint8_t> {
   switch (ehdr_.e_type) {
-    case ET_REL:
-      return parseRelocatableText(); // 목적 파일 (.o): 섹션 기반 파싱
+    case ET_REL: return parseRelocatableText(); // (.o): 섹션 기반 파싱
     case ET_EXEC:
-    case ET_DYN:
-      return parseExecutableText(); // 실행 파일 / 공유 라이브러리: 세그먼트
-                                    // 기반 파싱
-    default:
-      throw std::runtime_error("지원하지 않는 ELF 파일 타입입니다. (e_type)");
+    case ET_DYN: return parseExecutableText(); // (.so, .out): 세그먼트 기반 파싱
+    default: throw std::runtime_error("지원하지 않는 ELF 파일 타입입니다. (e_type)");
   }
 }
 
 
-// @brief ELF 매직 넘버, 클래스(32/64), 파일 크기 및 헤더 유효성 검증
+// ELF 매직 넘버, 클래스(32/64), 파일 크기 및 헤더 유효성 검증
 template <typename Traits>
 auto ElfParserImpl<Traits>::validateAndReadHeader() -> void {
   if (file_size_ < EI_NIDENT) {
@@ -279,18 +255,17 @@ auto ElfParserImpl<Traits>::parseExecutableText()
   throw std::runtime_error("실행 가능한 세그먼트에서 유효한 진입점(e_entry)을 찾을 수 없습니다.");
 }
 
-}
+} // namespace
+
 
 // ============================================================================
-// 4. 팩토리 함수 (런타임 다형성 진입점)
+// 팩토리 함수 (런타임 다형성 진입점)
 // ============================================================================
 /**
- * @brief 파일 헤더의 클래스 정보를 읽어 적절한 템플릿 특수화 파서를 동적으로
- * 생성한다.
- * @param filepath ELF 파일 경로
- * @return IElfParser 인터페이스 포인터
+ * 파일 헤더의 클래스 정보를 읽어 적절한 템플릿 특수화 파서를 동적으로 생성.
+ * @return ElfParser 인터페이스 포인터 반환
  */
-inline auto ElfParser::createElfParser(const std::filesystem::path& filepath) 
+auto ElfParser::createElfParser(const std::filesystem::path& filepath) 
 -> std::unique_ptr<ElfParser> {
   std::ifstream file(filepath, std::ios::binary);
   if (!file.is_open()) {
@@ -305,13 +280,10 @@ inline auto ElfParser::createElfParser(const std::filesystem::path& filepath)
 
   // 32비트/64비트에 따라 적절한 트레이츠를 주입하여 객체 인스턴스화
   switch (ident[EI_CLASS]) {
-  case ELFCLASS32:
-    return std::make_unique<ElfParserImpl<ELF32Traits>>(filepath);
-  case ELFCLASS64:
-    return std::make_unique<ElfParserImpl<ELF64Traits>>(filepath);
-  default:
-    throw std::runtime_error("알 수 없는 ELF 클래스 타입입니다.");
+    case ELFCLASS32: return std::make_unique<ElfParserImpl<ELF32Traits>>(filepath);
+    case ELFCLASS64: return std::make_unique<ElfParserImpl<ELF64Traits>>(filepath);
+    default: throw std::runtime_error("알 수 없는 ELF 클래스 타입입니다.");
   }
 }
 
-#endif // ELF_PARSER_H
+
