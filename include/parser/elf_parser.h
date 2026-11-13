@@ -2,35 +2,26 @@
 #define ELF_PARSER_H
 
 #include <cstdint>
-#include <elf.h>
 #include <filesystem>
 #include <memory>
 #include <vector>
 
-
-// ============================================================================
-// ELF 파서 공통 인터페이스
-// ============================================================================
+/* ELF 파일의 .text 또는 진입점 이후 실행 세그먼트 바이트를 읽는다. */
 class ElfParser {
 public:
   explicit ElfParser(const std::filesystem::path& filepath);
   ~ElfParser();
-
-  // fstream을 다루므로 복사는 금지하고 이동만 허용
   ElfParser(ElfParser&&) noexcept;
   ElfParser& operator=(ElfParser&&) noexcept;
   ElfParser(const ElfParser&) = delete;
   ElfParser& operator=(const ElfParser&) = delete;
-
-  // 공개 메서드
-  auto extractTextSection() -> std::vector<uint8_t>;
-
+  // 이동된 객체에서 호출하면 std::logic_error를 던진다.
+  [[nodiscard]] auto extractTextSection() -> std::vector<std::uint8_t>;
+  // 구체적인 구현체가 상속할 타입. 정의는 .cc 내부에 둔다.
   class ImplBase;
 
 private:
-  // 내부 구현체에 대한 전방 선언
   std::unique_ptr<ImplBase> impl_;
 };
-
 
 #endif // ELF_PARSER_H
