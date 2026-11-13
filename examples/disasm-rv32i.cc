@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
   }
 
   std::string file_path(argv[1]);
-  auto parser = createElfParser(file_path);
+  auto parser = ElfParser::createElfParser(file_path);
   auto text_bytes = parser->extractTextSection();
 
   std::vector<ToDecodeInstruction> to_decode_list;

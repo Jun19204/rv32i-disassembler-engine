@@ -18,18 +18,20 @@
 /**
  * 팩토리 패턴을 통해 생성된 객체를 다형적으로 다루기 위한 추상 베이스 클래스
  */
-class IElfParser {
+class ElfParser {
 public:
-  virtual ~IElfParser() = default;
+  virtual ~ElfParser() = default;
   /**
    * @brief 실행 코드 영역(.text 또는 실행 가능한 PT_LOAD 세그먼트)을
    * 추출한다.
    * @return 추출된 바이트 벡터
    */
   virtual auto extractTextSection() -> std::vector<uint8_t> = 0;
+  inline static auto createElfParser(const std::filesystem::path& filepath) 
+    -> std::unique_ptr<ElfParser>;
 };
 
-
+namespace {
 // ============================================================================
 // 2. 32비트 / 64비트 트레이츠 (시스템 표준 ELF 구조체 매핑)
 // ============================================================================
@@ -52,19 +54,39 @@ struct ELF64Traits {
 // 3. 구체적인 템플릿 파서 클래스 (정적 다형성 활용)
 // ============================================================================
 template <typename Traits> 
-class ElfParser : public IElfParser {
+class ElfParserImpl : public ElfParser {
 public:
-  explicit ElfParser(const std::filesystem::path &filepath)
-      : file_(filepath, std::ios::binary),
-        file_size_(static_cast<size_t>(std::filesystem::file_size(filepath))) {
-    if (!file_.is_open()) {
-      throw std::runtime_error("파일 열기 실패: " + filepath.string());
-    }
-    validateAndReadHeader();
-  }
+  explicit ElfParserImpl(const std::filesystem::path& filepath);
+  auto extractTextSection() -> std::vector<uint8_t> override;
 
-  auto extractTextSection() -> std::vector<uint8_t> override {
-    switch (ehdr_.e_type) {
+private:
+  std::ifstream file_;
+  size_t file_size_;
+  typename Traits::Ehdr ehdr_;
+
+  auto validateAndReadHeader() -> void;
+  auto parseRelocatableText() -> std::vector<uint8_t>;
+  auto parseExecutableText() -> std::vector<uint8_t>;
+};
+
+
+// 생성자
+template <typename Traits>
+ElfParserImpl<Traits>::ElfParserImpl(const std::filesystem::path &filepath)
+  : file_(filepath)
+  , file_size_(static_cast<size_t>(std::filesystem::file_size(filepath))) {
+  if (!file_.is_open()) {
+    throw std::runtime_error("파일 열기 실패: " + filepath.string());
+  }
+  validateAndReadHeader();
+}
+
+
+// 실행 코드 영역(.text 또는 실행 가능한 PT_LOAD 세그먼트) 추출 공개 함수
+// @return 추출된 바이트 벡터
+template <typename Traits>
+auto ElfParserImpl<Traits>::extractTextSection() -> std::vector<uint8_t> {
+  switch (ehdr_.e_type) {
     case ET_REL:
       return parseRelocatableText(); // 목적 파일 (.o): 섹션 기반 파싱
     case ET_EXEC:
@@ -73,57 +95,46 @@ public:
                                     // 기반 파싱
     default:
       throw std::runtime_error("지원하지 않는 ELF 파일 타입입니다. (e_type)");
-    }
   }
+}
 
-private:
-  std::ifstream file_;
-  size_t file_size_;
-  typename Traits::Ehdr ehdr_;
 
-  /**
-   * @brief ELF 매직 넘버, 클래스(32/64), 파일 크기 및 헤더 유효성 검증
-   */
-  void validateAndReadHeader() {
-    if (file_size_ < EI_NIDENT) {
-      throw std::runtime_error(
-          "파일 크기가 너무 작아 유효한 ELF일 수 없습니다.");
-    }
-    
-    std::array<unsigned char, EI_NIDENT> ident;
-    file_.read(reinterpret_cast<char *>(ident.data()),
-               static_cast<std::streamsize>(ident.size()));
-    
-    // ELF 매직 넘버 검증 (\x7f E L F)
-    if (ident[EI_MAG0] != ELFMAG0 || ident[EI_MAG1] != ELFMAG1 ||
-        ident[EI_MAG2] != ELFMAG2 || ident[EI_MAG3] != ELFMAG3) {
-      throw std::runtime_error("유효한 ELF 파일이 아닙니다 (매직 넘버 불일치)");
-    }
-    
-    // 클래스 타입 일치 여부 확인 (32-bit vs 64-bit)
-    if (ident[EI_CLASS] != Traits::kExpectedClass) {
-      throw std::runtime_error("ELF 클래스가 트레이츠와 일치하지 않습니다.");
-    }
-    
-    if (file_size_ < sizeof(typename Traits::Ehdr)) {
-      throw std::runtime_error("파일 크기가 ELF 헤더 크기보다 작습니다.");
-    }
-    
-    // 파일 포인터를 원점으로 재설정 후 전체 ELF 헤더 로드
-    file_.seekg(0, std::ios::beg);
-    file_.read(reinterpret_cast<char *>(&ehdr_),
-               static_cast<std::streamsize>(sizeof(ehdr_)));
+// @brief ELF 매직 넘버, 클래스(32/64), 파일 크기 및 헤더 유효성 검증
+template <typename Traits>
+auto ElfParserImpl<Traits>::validateAndReadHeader() -> void {
+  if (file_size_ < EI_NIDENT) {
+    throw std::runtime_error("파일 크기가 너무 작아 유효한 ELF일 수 없습니다.");
   }
-
-  auto parseRelocatableText() -> std::vector<uint8_t>;
-  auto parseExecutableText() -> std::vector<uint8_t>;
-};
-
+    
+  std::array<unsigned char, EI_NIDENT> ident;
+  file_.read(reinterpret_cast<char *>(ident.data()),
+             static_cast<std::streamsize>(ident.size()));
+    
+  // ELF 매직 넘버 검증 (\x7f E L F)
+  if (ident[EI_MAG0] != ELFMAG0 || ident[EI_MAG1] != ELFMAG1 ||
+    ident[EI_MAG2] != ELFMAG2 || ident[EI_MAG3] != ELFMAG3) {
+    throw std::runtime_error("유효한 ELF 파일이 아닙니다 (매직 넘버 불일치)");
+  }
+    
+  // 클래스 타입 일치 여부 확인 (32-bit vs 64-bit)
+  if (ident[EI_CLASS] != Traits::kExpectedClass) {
+    throw std::runtime_error("ELF 클래스가 트레이츠와 일치하지 않습니다.");
+  }
+    
+  if (file_size_ < sizeof(typename Traits::Ehdr)) {
+    throw std::runtime_error("파일 크기가 ELF 헤더 크기보다 작습니다.");
+  }
+    
+  // 파일 포인터를 원점으로 재설정 후 전체 ELF 헤더 로드
+  file_.seekg(0, std::ios::beg);
+  file_.read(reinterpret_cast<char *>(&ehdr_),
+             static_cast<std::streamsize>(sizeof(ehdr_)));
+}
 
 
 // 목적 파일(.o)의 섹션 헤더 테이블을 순회하여 .text 섹션 추출
 template <typename Traits>
-auto ElfParser<Traits>::parseRelocatableText() 
+auto ElfParserImpl<Traits>::parseRelocatableText() 
 -> std::vector<uint8_t> {
   using Shdr = typename Traits::Shdr;
 
@@ -200,10 +211,9 @@ auto ElfParser<Traits>::parseRelocatableText()
 }
 
 
-
 // 실행 파일/공유 라이브러리의 프로그램 헤더 및 진입점을 활용한 하이브리드 추출
 template <typename Traits>
-auto ElfParser<Traits>::parseExecutableText() 
+auto ElfParserImpl<Traits>::parseExecutableText() 
 -> std::vector<uint8_t> {
   // 실행 파일이라도 섹션 헤더 테이블이 살아있다면 .text 섹션 우선 탐색
   if (ehdr_.e_shoff != 0 && ehdr_.e_shnum != 0 && ehdr_.e_shstrndx != SHN_UNDEF) {
@@ -269,6 +279,7 @@ auto ElfParser<Traits>::parseExecutableText()
   throw std::runtime_error("실행 가능한 세그먼트에서 유효한 진입점(e_entry)을 찾을 수 없습니다.");
 }
 
+}
 
 // ============================================================================
 // 4. 팩토리 함수 (런타임 다형성 진입점)
@@ -279,8 +290,8 @@ auto ElfParser<Traits>::parseExecutableText()
  * @param filepath ELF 파일 경로
  * @return IElfParser 인터페이스 포인터
  */
-inline auto createElfParser(const std::filesystem::path& filepath) 
--> std::unique_ptr<IElfParser> {
+inline auto ElfParser::createElfParser(const std::filesystem::path& filepath) 
+-> std::unique_ptr<ElfParser> {
   std::ifstream file(filepath, std::ios::binary);
   if (!file.is_open()) {
     throw std::runtime_error("파일 열기 실패: " + filepath.string());
@@ -295,9 +306,9 @@ inline auto createElfParser(const std::filesystem::path& filepath)
   // 32비트/64비트에 따라 적절한 트레이츠를 주입하여 객체 인스턴스화
   switch (ident[EI_CLASS]) {
   case ELFCLASS32:
-    return std::make_unique<ElfParser<ELF32Traits>>(filepath);
+    return std::make_unique<ElfParserImpl<ELF32Traits>>(filepath);
   case ELFCLASS64:
-    return std::make_unique<ElfParser<ELF64Traits>>(filepath);
+    return std::make_unique<ElfParserImpl<ELF64Traits>>(filepath);
   default:
     throw std::runtime_error("알 수 없는 ELF 클래스 타입입니다.");
   }
