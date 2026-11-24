@@ -1,55 +1,65 @@
 {
   "version": 6,
-
-
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
   "configurePresets": [
     {
-      "name": "base",
-      "hidden": true, 
+      "name": "gcc",
+      "displayName": "GCC (WSL Fedora)",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "binaryDir": "${sourceDir}/build/gcc",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "g++",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {
-      "name": "asan",
-      "inherits": "base",
+      "name": "clang",
+      "displayName": "Clang (WSL Fedora)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/clang",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
       "cacheVariables": {
-        "USE_SANITIZER": "ON"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {
-      "name": "valgrind",
-      "inherits": "base",
+      "name": "msvc",
+      "displayName": "MSVC (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/msvc",
       "cacheVariables": {
-        "USE_SANITIZER": "OFF"
+        "CMAKE_CXX_COMPILER": "cl"
       }
     }
   ],
-
-
   "buildPresets": [
     {
-      "name": "asan",
-      "configurePreset": "asan"
+      "name": "gcc",
+      "configurePreset": "gcc"
     },
     {
-      "name": "valgrind",
-      "configurePreset": "valgrind"
-    }
-  ],
-
-
-  "testPresets": [
+      "name": "clang",
+      "configurePreset": "clang"
+    },
     {
-      "name": "asan",
-      "configurePreset": "asan",
-      "output": {
-        "outputOnFailure": true
-      }
+      "name": "msvc",
+      "configurePreset": "msvc"
     }
   ]
 }
-
