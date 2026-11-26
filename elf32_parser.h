@@ -8,6 +8,7 @@
 #include <vector>
 #include <cstddef>
 #include <type_traits>
+#include <cstdint>
 
 
 #if __has_include(<elf.h>)
@@ -19,8 +20,6 @@
 
 
 #if !SYSTEM_HAS_ELF_H
-  #include <cstdint>
-
   struct Elf32_Ehdr {
     unsigned char e_ident[16];  /* Magic number and other info */
     uint16_t e_type;            /* Object file type */
